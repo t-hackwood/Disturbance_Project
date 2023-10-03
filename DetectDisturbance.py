@@ -9,8 +9,6 @@ Tim Hackwood 09/09/2023
 Script takes sentinel 2 imagery...
 """
 
-
-
 # Imports
 import warnings
 warnings.filterwarnings("ignore")
@@ -55,6 +53,8 @@ def GetCmdArgs():
         help="Output file (.shp, .gpkg)")
     p.add_argument("--ndvi", required=False, 
         help="file to write a geotiff with NDVIs create (.tif, optional)")
+    p.add_argument("--trigger", required=False, default=12500, type=int, 
+        help="Option to set trigger value for NDVI drop scaled to 16 bit integer (0-20000). Default is 12500 (0.25 in traditional NDVI)")
     
     cmdargs = p.parse_args()
     
@@ -193,6 +193,8 @@ def notiffpipe(AOI, daterange, buffer, epsg):
   
     stack = searchSTAC(AOI, daterange)
     
+    print(f'{len(stack)} tiles found date range {daterange}')
+    
     array, affine = mosaic(stack, AOI, epsg)
     
     ndvi = NDVI(array)
@@ -207,6 +209,8 @@ def tiffpipe(AOI, daterange, buffer, epsg):
     """
   
     stack = searchSTAC(AOI, daterange)
+    
+    print(f'{len(stack)} tiles found date range {daterange}')
     
     array, affine = mosaic(stack, AOI, epsg)
     
@@ -225,9 +229,6 @@ def cloudtest(AOI, daterange1, daterange2):
     cloud = min(len(stack), len(stack2))
     
     return cloud
-
-    # Show the results of the search
-    print(f"{s2Search.matched()} items found")
 
 def main():
     
@@ -251,12 +252,16 @@ def main():
     
     daterange2 = daterange(firstdate, cmdargs.buffer)
 
-    print(f'Query daterage: {daterange2}, reference daterage: {daterange1}')
+    print(f'Analysis date range: {daterange2}, reference date range: {daterange1}')
+    
+    print('Checking for valid Sentinel 2 tiles...')
     
     tiles = cloudtest(hex, daterange1, daterange2)
         
     if tiles < 20: 
         raise SystemExit('Not enough tiles for mosaic, try increasing date buffer argument')
+     
+    # Process dates with tiff output pipeline
           
     elif cmdargs.ndvi is not None:
         
@@ -289,8 +294,8 @@ def main():
             colname = f'{firstdate.year}_{firstdate.month}_mean'
         
             hex[f'{firstdate.year}_{firstdate.month}_mean'] = outpoly2['mean']
-        
-            hex.to_file(f'{cmdargs.out}')
+    
+    # Process dates without exporting tiffs
                       
     else:
         
@@ -308,7 +313,15 @@ def main():
         
         hex[f'{firstdate.year}_{firstdate.month}_mean'] = outpoly2['mean']
         
-        hex.to_file(f'{cmdargs.out}')
+    # Set trigger for disturbance and apply to geodataframe
+    
+    hex['trigger'] = hex[f'{oneyear.year}_{oneyear.month}_mean'] - cmdargs.trigger
+    
+    hex['Disturbance'] = 0
+
+    hex.loc[hex[f'{firstdate.year}_{firstdate.month}_mean'] < hex['trigger'], 'Disturbance'] = 1
+    
+    hex.to_file(f'{cmdargs.out}')
      
     
 if __name__ == '__main__':
