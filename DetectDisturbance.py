@@ -41,8 +41,10 @@ def GetCmdArgs():
     """
     p = argparse.ArgumentParser()
     
-    p.add_argument("--start", required=True, type=str, 
+    p.add_argument("--date", required=True, type=str, 
         help="Date to begin searching Sentinel 2 catalog (yyyy-mm-dd)")
+    p.add_argument("--weeks", required=False, default=52, type=int, 
+        help="Gap in weeks between analysis date and reference date. Default = 52 weeks")
     p.add_argument("--AOI", required=True,
         help="Input AOI polygon (.shp, .gpkg)")
     p.add_argument("--buffer", required=False, default=90, type=int, 
@@ -53,8 +55,8 @@ def GetCmdArgs():
         help="Output file (.shp, .gpkg)")
     p.add_argument("--ndvi", required=False, 
         help="file to write a geotiff with NDVIs create (.tif, optional)")
-    p.add_argument("--trigger", required=False, default=12500, type=int, 
-        help="Option to set trigger value for NDVI drop scaled to 16 bit integer (0-20000). Default is 12500 (0.25 in traditional NDVI)")
+    p.add_argument("--trigger", required=False, default=2500, type=int, 
+        help="Option to set trigger value for NDVI drop scaled to 16 bit integer (0-20000). Default is 2500 (0.25 in traditional NDVI)")
     
     cmdargs = p.parse_args()
     
@@ -244,9 +246,9 @@ def main():
     hex = getHexagons(poly, 8, cmdargs.epsg)
 
     # Work out dates 12 months apart
-    firstdate = datetime.strptime(cmdargs.start, '%Y-%m-%d')
+    firstdate = datetime.strptime(cmdargs.date, '%Y-%m-%d')
     
-    oneyear = firstdate - timedelta(weeks=52)
+    oneyear = firstdate - timedelta(weeks=cmdargs.weeks)
     
     daterange1 = daterange(oneyear, cmdargs.buffer)
     
@@ -320,6 +322,12 @@ def main():
     hex['Disturbance'] = 0
 
     hex.loc[hex[f'{firstdate.year}_{firstdate.month}_mean'] < hex['trigger'], 'Disturbance'] = 1
+    
+    hex = hex.drop(columns= ['trigger'])
+    
+    area = int(hex['Disturbance'].sum() * 73.73)
+    
+    print(f'Approximately {area} hectares triggered for disturbance')
     
     hex.to_file(f'{cmdargs.out}')
      
