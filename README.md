@@ -2,7 +2,7 @@
 
 03/10/2023
 
-Author: Tim Hackwood
+Tim Hackwood
 
 https://github.com/t-hackwood/Disturbance_Project
 
