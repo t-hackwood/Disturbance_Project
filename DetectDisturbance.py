@@ -9,9 +9,9 @@ Tim Hackwood 09/09/2023
 Script takes sentinel 2 imagery...
 """
 
-
-
 # Imports
+import warnings
+warnings.filterwarnings("ignore")
 import os
 os.environ['USE_PYGEOS'] = '0'
 #os.environ['GDAL_DATA'] = '/usr/share/gdal/'
@@ -41,8 +41,10 @@ def GetCmdArgs():
     """
     p = argparse.ArgumentParser()
     
-    p.add_argument("--start", required=True, type=str, 
+    p.add_argument("--date", required=True, type=str, 
         help="Date to begin searching Sentinel 2 catalog (yyyy-mm-dd)")
+    p.add_argument("--weeks", required=False, default=52, type=int, 
+        help="Gap in weeks between analysis date and reference date. Default = 52 weeks")
     p.add_argument("--AOI", required=True,
         help="Input AOI polygon (.shp, .gpkg)")
     p.add_argument("--buffer", required=False, default=90, type=int, 
@@ -52,7 +54,9 @@ def GetCmdArgs():
     p.add_argument("--out", required=True,
         help="Output file (.shp, .gpkg)")
     p.add_argument("--ndvi", required=False, 
-        help="Write a geotiff with NDVIs create (optional)")
+        help="file to write a geotiff with NDVIs create (.tif, optional)")
+    p.add_argument("--trigger", required=False, default=2500, type=int, 
+        help="Option to set trigger value for NDVI drop scaled to 16 bit integer (0-20000). Default is 2500 (0.25 in traditional NDVI)")
     
     cmdargs = p.parse_args()
     
@@ -78,7 +82,7 @@ def searchSTAC(AOI, dateRange):
     
     bbox = AOI.total_bounds
 
-    print(f'Will search for imagery between {dateRange} using a bounding box of\n{bbox}')
+    #print(f'Will search for imagery between {dateRange} using a bounding box of\n{bbox}')
     
     client = Client.open("https://earth-search.aws.element84.com/v1")
     client.add_conforms_to('ITEM_SEARCH')
@@ -86,12 +90,9 @@ def searchSTAC(AOI, dateRange):
         collections=['sentinel-2-l2a'],
         datetime = dateRange,
         bbox=bbox,
-        query = {'eo:cloud_cover':{'lt':25},
-           's2:nodata_pixel_percentage':{'lt': 10}
+        query = {'eo:cloud_cover':{'lt':5},
         }
     )
-# Show the results of the search
-    print(f"{s2Search.matched()} items found")
 
     return s2Search.item_collection()
 
@@ -103,25 +104,33 @@ def NDVI(array):
     img = array
     # ignore '0' and Nan pixels to avoid dividing errors
     np.seterr(divide='ignore', invalid='ignore')
-
+    
     # Assign bands for calculation. Note that these are indexed from 0, not band name.
     NIR = img[1] # NIR
     red = img[0] # red band
-    nodata = np.logical_or((NIR == 0) ,(red == 0))
+
+    mask = np.logical_or((NIR == 0) ,(red == 0))
+        
     # calculate ndvi. Must specify floats for decimals
     ndvi = (NIR.astype(float)-red.astype(float))/(NIR.astype(float)+red.astype(float))
+    # Mask any nodata
+    ndvi[mask] = np.nan
     
-    ndvi = (10000 + 10000*ndvi).astype(np.uint16) # rescale to uint16
-    ndvi[nodata] ==65535 #assign no data
+    # Assign final nodata value
+    ndvi = np.nan_to_num(ndvi, nan=65535)    
     
+    ndvi = (10000 + 10000*ndvi) # rescale to uint16 
+    
+    ndvi = np.nan_to_num(ndvi, nan=65535).astype(np.uint16)
+          
     return ndvi
 
-def daterange(date):
+def daterange(date, buffer):
     """
     Function takes string date input (yyyy-mm-dd) and returns a date rage of 3 months to input in stac query.
     """
    
-    window = (date - timedelta(days=90)).strftime("%Y-%m-%d")
+    window = (date - timedelta(days=buffer)).strftime("%Y-%m-%d")
     
     date=date.strftime("%Y-%m-%d")
     
@@ -141,20 +150,24 @@ def mosaic(tiles, AOI, epsg):
     stackstac.stack(
         tiles,
         assets=['red', 'nir'],  # red, green, blue, NIR
-        chunksize=4096,
+        chunksize='auto',
         epsg=epsg, # project to Australian albers 
         bounds_latlon=bbox, # clip to AOI extent
+        gdal_env=stackstac.DEFAULT_GDAL_ENV.updated(
+                               {'GDAL_HTTP_MAX_RETRY': 3,
+                                'GDAL_HTTP_RETRY_DELAY': 5,
+                               }),
         resolution=100
     )
     .where(lambda x: x > 0, other=np.nan)  # sentinel-2 uses 0 as nodata
     
     )
-       
-    print(f'Making cloud-free mosaic for {daterange}')
+    
+    print(f'Making cloud-free mosaic...')
     
     with ProgressBar():
 
-        median = data.median(dim="time").compute() # Compute median of all pixels across time series, assumming clouds are transient
+        median = data.median(dim="time", skipna=True).compute() # Compute median of all pixels across time series, assumming clouds are transient
     
     affine = data.transform
     
@@ -175,12 +188,14 @@ def zonestats(polygons, array, affine):
     
     return outstats
 
-def noTiff(AOI, daterange, buffer, epsg):
+def notiffpipe(AOI, daterange, buffer, epsg):
     """
-    Option for no NDVI tiffs
+    Pipe to run process but not export NDVI tiffs
     """
   
     stack = searchSTAC(AOI, daterange)
+    
+    print(f'{len(stack)} tiles found date range {daterange}')
     
     array, affine = mosaic(stack, AOI, epsg)
     
@@ -190,6 +205,32 @@ def noTiff(AOI, daterange, buffer, epsg):
         
     return outstats
 
+def tiffpipe(AOI, daterange, buffer, epsg):
+    """
+    Pipe to run process exporting NDVI tiffs
+    """
+  
+    stack = searchSTAC(AOI, daterange)
+    
+    print(f'{len(stack)} tiles found date range {daterange}')
+    
+    array, affine = mosaic(stack, AOI, epsg)
+    
+    ndvi = NDVI(array)
+    
+    outstats = zonestats(AOI, ndvi, affine)
+        
+    return outstats, ndvi, affine
+
+def cloudtest(AOI, daterange1, daterange2):
+    
+    stack = searchSTAC(AOI, daterange1)
+    
+    stack2 = searchSTAC(AOI, daterange2)
+        
+    cloud = min(len(stack), len(stack2))
+    
+    return cloud
 
 def main():
     
@@ -205,44 +246,91 @@ def main():
     hex = getHexagons(poly, 8, cmdargs.epsg)
 
     # Work out dates 12 months apart
-    firstdate = datetime.strptime(cmdargs.start, '%Y-%m-%d')
+    firstdate = datetime.strptime(cmdargs.date, '%Y-%m-%d')
     
-    oneyear = firstdate - timedelta(weeks=52)
+    oneyear = firstdate - timedelta(weeks=cmdargs.weeks)
     
-    daterange1 = daterange(oneyear)
+    daterange1 = daterange(oneyear, cmdargs.buffer)
     
-    daterange2 = daterange(firstdate)
+    daterange2 = daterange(firstdate, cmdargs.buffer)
 
-    print(f'Query daterage: {daterange2}, reference daterage: {daterange1}')
+    print(f'Analysis date range: {daterange2}, reference date range: {daterange1}')
     
-    try:
-        if cmdargs.ndvi is not None:
-            print('making ndvi')
-            
-    except:
-        print("No NDVI tiff will be exported")
-
-    else:
+    print('Checking for valid Sentinel 2 tiles...')
+    
+    tiles = cloudtest(hex, daterange1, daterange2)
+        
+    if tiles < 20: 
+        raise SystemExit('Not enough tiles for mosaic, try increasing date buffer argument')
+     
+    # Process dates with tiff output pipeline
+          
+    elif cmdargs.ndvi is not None:
         
         print('Processing reference date...')
         
-        outpoly1 = noTiff(hex, daterange1, cmdargs.buffer, cmdargs.epsg)
+        outpoly1, ndvi1, affine = tiffpipe(hex, daterange1, cmdargs.buffer, cmdargs.epsg)
         
         hex[f'{oneyear.year}_{oneyear.month}_mean'] = outpoly1['mean']  
         
         print('Processing analysis date...')
         
-        outpoly2 = noTiff(hex, daterange2, cmdargs.buffer, cmdargs.epsg)
+        outpoly2, ndvi2, affine = tiffpipe(hex, daterange2, cmdargs.buffer, cmdargs.epsg)
+        
+        stack = np.stack((ndvi1, ndvi2), axis=0)
+        
+        print(f'Writing {cmdargs.ndvi}...')
+        
+        with rasterio.open(f'{cmdargs.ndvi}',
+            "w",
+            driver='GTiff',
+            height=stack.shape[1],
+            width=stack.shape[2],
+            count=stack.shape[0],
+            dtype='uint16', 
+            crs= cmdargs.epsg,
+            transform= affine,
+            nodata=65535) as dst:
+            dst.write(stack, [1, 2])
+        
+            colname = f'{firstdate.year}_{firstdate.month}_mean'
+        
+            hex[f'{firstdate.year}_{firstdate.month}_mean'] = outpoly2['mean']
+    
+    # Process dates without exporting tiffs
+                      
+    else:
+        
+        print('Processing reference date...')
+        
+        outpoly1 = notiffpipe(hex, daterange1, cmdargs.buffer, cmdargs.epsg)
+        
+        hex[f'{oneyear.year}_{oneyear.month}_mean'] = outpoly1['mean']  
+        
+        print('Processing analysis date...')
+        
+        outpoly2 = notiffpipe(hex, daterange2, cmdargs.buffer, cmdargs.epsg)
         
         colname = f'{firstdate.year}_{firstdate.month}_mean'
         
         hex[f'{firstdate.year}_{firstdate.month}_mean'] = outpoly2['mean']
         
-        hex.to_file(f'{cmdargs.out}')
-        
-    finally: 
+    # Set trigger for disturbance and apply to geodataframe
+    
+    hex['trigger'] = hex[f'{oneyear.year}_{oneyear.month}_mean'] - cmdargs.trigger
+    
+    hex['Disturbance'] = 0
 
-        shutil.rmtree(tempDir)
-
+    hex.loc[hex[f'{firstdate.year}_{firstdate.month}_mean'] < hex['trigger'], 'Disturbance'] = 1
+    
+    hex = hex.drop(columns= ['trigger'])
+    
+    area = int(hex['Disturbance'].sum() * 73.73)
+    
+    print(f'Approximately {area} hectares triggered for disturbance')
+    
+    hex.to_file(f'{cmdargs.out}')
+     
+    
 if __name__ == '__main__':
     main()
