@@ -10,15 +10,15 @@ OVERVIEW:
 
 Detect Disturbance detects significant vegetation disturbances over any given AOI for a specified date range. 
 
-The script utilises a cloudless mosaic of Sential 2 imagery from the Spatio Temporal Asset Catalog and the H3 Hexagon library 
+The script utilises a cloudless mosaic of Sentiel 2 imagery from the Spatio-Temporal Asset Catalog and the H3 Hexagon library 
 to determine the mean NDVI for each hexagon grid cell over an AOI, for two dates. The values for each hexagon are then compared
-with trigger value to determin if any significant disturbances have been detected. The H3 Hexagon grid system is utilised for
-the way that hexagons follow the outlines of natural features, and becuase the hexagon labels are stable, meaning that future 
+with trigger value to determine if any significant disturbances have been detected. The H3 Hexagon grid system is utilised for
+the way that hexagons follow the outlines of natural features, and because the hexagon labels are stable, meaning that future 
 analyses over the same AOI can be easily joined. 
 
 Usual caveats for NDVI analysis apply. Primarily, this means that this script will only detect significant loss in photosynthetic
-vegetation (i.e., complete clearing to bare soil) and as such, a clearing event that has regnerated pasture in high rainfall areas
-may not be triggerd.
+vegetation (i.e., complete clearing to bare soil) and as such, a clearing event that has regenerated pasture in high rainfall areas
+may not be triggered.
 
 ENVIORNMENT: 
 
@@ -34,14 +34,14 @@ Script is run through the terminal. To access help menu use:
 
 python DetectDisturbance.py -h
 
-The example test area over Tennant Creek, Northern Teritory, Australia can be run using:
+The example test area over Tennant Creek, Northern Territory, Australia can be run using:
 
-python DetectDisturbance.py --date 2023-09-25 --AOI /mnt/d/SpatialProgramming/DATA/tennantCreek.shp  --out /home/thackwood/uni/tennantCk6.gpkg
+python DetectDisturbance.py --date 2023-09-25 --AOI /mnt/d/DATA/tennantCreek.shp  --out /home/thackwood/out/tennantCk.gpkg
 
 However, you may like to include the following arguments below:  
 
-python DetectDisturbance.py --date 2023-09-25 --AOI /mnt/d/SpatialProgramming/DATA/tennantCreek.shp  --out /home/thackwood/uni/tennantCk6.gpkg  
---ndvi /home/thackwood/uni/tennantCk4.tif --buffer 30 --trigger 2500 --weeks 12 --epsg 3577
+python DetectDisturbance.py --date 2023-09-25 --AOI /mnt/d/DATA/tennantCreek.shp  --out /home/thackwood/out/tennantCk.gpkg  
+--ndvi /home/thackwood/out/tennantCkNDVI.tif --buffer 30 --trigger 2500 --weeks 12 --epsg 3577
 
 Where:
 
