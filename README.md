@@ -52,23 +52,23 @@ Where:
 --out (mandatory) = 	The full file path where you would like to write your output hexagons. Can be any Geopandas compatable file as above
 
 --ndvi (optional) = 	The fulll file path where you can optionally write a tiff file of the NDVIs used to detect disturbance. Optional argument,
-						default is no tiff output however, this option is helpful if you suspect erroneous data from clouds etc.
+			default is no tiff output however, this option is helpful if you suspect erroneous data from clouds etc.
 					
 --buffer (optional) = 	Buffer date range you would like to sample Sentinel 2 imagery. Optional argument, default is 90 days. For cloudy regions/
-						periods, you may like to increase this to include more tiles to mosaic but this will increase compute time. NOTE: Sentinel
-						images are filtered to only include less than 5% cloud cover however, enough images to make a completly cloudless mosaic
-						of the study area is requred for best results. 
+			periods, you may like to increase this to include more tiles to mosaic but this will increase compute time. NOTE: Sentinel
+			images are filtered to only include less than 5% cloud cover however, enough images to make a completly cloudless mosaic
+			of the study area is requred for best results. 
 					  
 --trigger (optional) =	The NDVI drop you would like to trigger a detected disturbance. Optional argument, default is 2500 (or 0.25 in typical NDVI).
-						You may like to adjust this depending on your specific use case. NDVI values are scaled using the formula 1000+1000*NDVI, so
-						typical -1 to 1 values are now 0-20000 in the output. 
+			You may like to adjust this depending on your specific use case. NDVI values are scaled using the formula 1000+1000*NDVI, so
+			typical -1 to 1 values are now 0-20000 in the output. 
 
 --weeks (optional) =	How many weeks prior to your analysis date you would like to search Sentinel 2 to compare with. Optional argument, default is
-						52 weeks. This can be adjusted to suit your specific region. For example, comparing the disturbance from fure to the 
-						conditions 1 year prior to the analysis date yeilds very differnt results to those of only 3 months prior.
+			52 weeks. This can be adjusted to suit your specific region. For example, comparing the disturbance from fure to the 
+			conditions 1 year prior to the analysis date yeilds very differnt results to those of only 3 months prior.
 
 --epsg (optional) = 	The CRS (as an EPSG number) you would like to expor your final results as. Optional argument, default is Australian Albers
-						(EPSG:3577). NOTE: A projected, equal area CRS is reccomended for best results.
+			(EPSG:3577). NOTE: A projected, equal area CRS is reccomended for best results.
 						
 OUTPUTS:
 
