@@ -1,8 +1,9 @@
 # Detect Disturbance Project
 
-03/10/2023
+Detect Disturbance
 
-Tim Hackwood
+03/10/2023
+Author: Tim Hackwood
 
 https://github.com/t-hackwood/Disturbance_Project
 
@@ -10,15 +11,16 @@ OVERVIEW:
 
 Detect Disturbance detects significant vegetation disturbances over any given AOI for a specified date range. 
 
-The script utilises a cloudless mosaic of Sentiel 2 imagery from the Spatio-Temporal Asset Catalog and the H3 Hexagon library 
+The script utilises a cloudless mosaic of Sential 2 imagery from the Spatio Temporal Asset Catalog (STAC) and the H3 Hexagon library 
 to determine the mean NDVI for each hexagon grid cell over an AOI, for two dates. The values for each hexagon are then compared
-with trigger value to determine if any significant disturbances have been detected. The H3 Hexagon grid system is utilised for
-the way that hexagons follow the outlines of natural features, and because the hexagon labels are stable, meaning that future 
+with trigger value to determin if any significant disturbances have been detected. The H3 Hexagon grid system is utilised for
+the way that hexagons follow the outlines of natural features, and becuase the hexagon labels are stable, meaning that future 
 analyses over the same AOI can be easily joined. 
 
 Usual caveats for NDVI analysis apply. Primarily, this means that this script will only detect significant loss in photosynthetic
-vegetation (i.e., complete clearing to bare soil) and as such, a clearing event that has regenerated pasture in high rainfall areas
-may not be triggered.
+vegetation (i.e., complete clearing to bare soil) and as such, a clearing event that has regnerated pasture in high rainfall areas
+may not be triggerd. The trigger parameter can be adjusted to suit your specific usecase. Alternatively, the mean NDVIs within each 
+hexagon grid cell can be visualised in a GIS.
 
 ENVIORNMENT: 
 
@@ -30,18 +32,13 @@ conda activate "MyEnv"
 
 USAGE:
 
-Script is run through the terminal. To access help menu use: 
+Script is run through a terminal, in the environment created above. To access help menu use: 
 
 python DetectDisturbance.py -h
 
-The example test area over Tennant Creek, Northern Territory, Australia can be run using:
+The example test area over Tennant Creek, Northern Teritory, Australia can be run using:
 
-python DetectDisturbance.py --date 2023-09-25 --AOI /mnt/d/DATA/tennantCreek.shp  --out /home/thackwood/out/tennantCk.gpkg
-
-However, you may like to include the following arguments below:  
-
-python DetectDisturbance.py --date 2023-09-25 --AOI /mnt/d/DATA/tennantCreek.shp  --out /home/thackwood/out/tennantCk.gpkg  
---ndvi /home/thackwood/out/tennantCkNDVI.tif --buffer 30 --trigger 2500 --weeks 12 --epsg 3577
+python DetectDisturbance.py --date 2023-09-25 --AOI /mnt/d/SpatialProgramming/DATA/tennantCreek.shp  --out /home/thackwood/uni/tennantCk6.gpkg
 
 Where:
 
@@ -50,6 +47,13 @@ Where:
 --AOI (mandatory) = 	Your AOI as a single polygon. Can be any Geopandas compatible file (e.g., .shp, .json, .gpkg)
 
 --out (mandatory) = 	The full file path where you would like to write your output hexagons. Can be any Geopandas compatable file as above
+
+However, you can optionally include the following parameters as below:  
+
+python DetectDisturbance.py --date 2023-09-25 --AOI /mnt/d/SpatialProgramming/DATA/tennantCreek.shp  --out /home/thackwood/uni/tennantCk6.gpkg  
+--ndvi /home/thackwood/uni/tennantCk4.tif --buffer 30 --trigger 2500 --weeks 12 --epsg 3577
+
+Where:
 
 --ndvi (optional) = 	The fulll file path where you can optionally write a tiff file of the NDVIs used to detect disturbance. Optional argument,
 			default is no tiff output however, this option is helpful if you suspect erroneous data from clouds etc.
