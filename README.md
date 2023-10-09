@@ -35,7 +35,7 @@ python DetectDisturbance.py -h
 
 The example test area over Tennant Creek, Northern Teritory, Australia can be run using:
 
-python DetectDisturbance.py --date 2023-09-25 --AOI /mnt/d/SpatialProgramming/DATA/tennantCreek.shp  --out /home/thackwood/uni/tennantCk6.gpkg
+python DetectDisturbance.py --date 2023-09-25 --AOI  /home/thackwood/uni/tennantCreek.shp  --out /home/thackwood/uni/out/tennantCk.gpkg
 
 Where:
 
@@ -47,8 +47,7 @@ Where:
 
 However, you can optionally include the following parameters as below:  
 
-python DetectDisturbance.py --date 2023-09-25 --AOI /mnt/d/SpatialProgramming/DATA/tennantCreek.shp  --out /home/thackwood/uni/tennantCk6.gpkg  
---ndvi /home/thackwood/uni/tennantCk4.tif --buffer 30 --trigger 2500 --weeks 12 --epsg 3577
+python DetectDisturbance.py --date 2023-09-25 --AOI  /home/thackwood/uni/tennantCreek.shp  --out /home/thackwood/uni/out/tennantCk.gpkg  --ndvi /home/thackwood/uni/out/tennantCk.tif --buffer 30 --trigger 2500 --weeks 12 --epsg 3577
 
 Where:
 
