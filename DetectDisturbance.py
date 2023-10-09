@@ -14,7 +14,6 @@ import warnings
 warnings.filterwarnings("ignore")
 import os
 os.environ['USE_PYGEOS'] = '0'
-#os.environ['GDAL_DATA'] = '/usr/share/gdal/'
 import argparse
 from datetime import timedelta
 from datetime import datetime
@@ -63,6 +62,9 @@ def GetCmdArgs():
     return cmdargs
 
 def getHexagons(AOI, resolution, crs):
+    """
+    Function to get h3 hexagons over a buffered AOI and return a geodataframe
+    """
     
     AOI = AOI.to_crs(f'EPSG:{crs}')
     
@@ -75,7 +77,7 @@ def getHexagons(AOI, resolution, crs):
 
 def searchSTAC(AOI, dateRange):
     """
-    Function searches Sentine 2 stack within a bbox and date range
+    Function searches Sentine 2 stack within a bbox and date range and returns the search item collection
     """
     
     AOI = AOI.to_crs('EPSG:4283') # need a geographic crs for sentinel
@@ -98,7 +100,7 @@ def searchSTAC(AOI, dateRange):
 
 def NDVI(array):
     """
-    Function to calculate NDVI over raster and return as a rescaled uint16 array.
+    Function calculates NDVI over array with bands red and NIR, and return as a rescaled uint16 array
     """    
     print('Calulating NDVI...')  
     img = array
@@ -245,7 +247,7 @@ def main():
     
     hex = getHexagons(poly, 8, cmdargs.epsg)
 
-    # Work out dates 12 months apart
+    # Work out dates to query STAC x weeks apart
     firstdate = datetime.strptime(cmdargs.date, '%Y-%m-%d')
     
     oneyear = firstdate - timedelta(weeks=cmdargs.weeks)
@@ -255,6 +257,8 @@ def main():
     daterange2 = daterange(firstdate, cmdargs.buffer)
 
     print(f'Analysis date range: {daterange2}, reference date range: {daterange1}')
+    
+    # Quick test to determine if enough low cloud sentinel 2
     
     print('Checking for valid Sentinel 2 tiles...')
     
