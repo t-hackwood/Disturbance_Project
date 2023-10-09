@@ -1,6 +1,4 @@
-# Detect Disturbance Project
-
-Detect Disturbance
+# Detect Disturbance
 
 03/10/2023
 Author: Tim Hackwood
@@ -19,8 +17,7 @@ analyses over the same AOI can be easily joined.
 
 Usual caveats for NDVI analysis apply. Primarily, this means that this script will only detect significant loss in photosynthetic
 vegetation (i.e., complete clearing to bare soil) and as such, a clearing event that has regnerated pasture in high rainfall areas
-may not be triggerd. The trigger parameter can be adjusted to suit your specific usecase. Alternatively, the mean NDVIs within each 
-hexagon grid cell can be visualised in a GIS.
+may not be triggerd. The trigger parameter can be adjusted to suit your specific usecase. Alternatively, the mean NDVIs within each hexagon grid cell can be visualised in a GIS.
 
 ENVIORNMENT: 
 
