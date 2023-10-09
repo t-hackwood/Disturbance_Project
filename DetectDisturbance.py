@@ -264,7 +264,7 @@ def main():
     
     tiles = cloudtest(hex, daterange1, daterange2)
         
-    if tiles < 10: 
+    if tiles < 20: 
         raise SystemExit('Not enough tiles for mosaic, try increasing date buffer argument')
      
     # Process dates with tiff output pipeline
