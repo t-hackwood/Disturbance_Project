@@ -4,7 +4,7 @@
 """
 SPA452 Assessment 4 script - Detect forest change project
 
-Tim Hackwood 09/09/2023
+Tim Hackwood 09/10/2023
 
 Script takes sentinel 2 imagery...
 """
@@ -24,8 +24,6 @@ import stackstac
 import geopandas as gp
 import pandas as pd
 from osgeo import gdal
-import tempfile
-import shutil
 from shapely.geometry import Polygon
 import h3
 from tobler.util import h3fy
@@ -105,25 +103,20 @@ def NDVI(array):
     print('Calulating NDVI...')  
     img = array
     # ignore '0' and Nan pixels to avoid dividing errors
-    np.seterr(divide='ignore', invalid='ignore')
+    #np.seterr(divide='ignore', invalid='ignore')
     
     # Assign bands for calculation. Note that these are indexed from 0, not band name.
     NIR = img[1] # NIR
+    NIR = NIR.astype(np.float32)
     red = img[0] # red band
-
-    mask = np.logical_or((NIR == 0) ,(red == 0))
+    red = red.astype(np.float32)
         
-    # calculate ndvi. Must specify floats for decimals
-    ndvi = (NIR.astype(float)-red.astype(float))/(NIR.astype(float)+red.astype(float))
-    # Mask any nodata
-    ndvi[mask] = np.nan
+    # calculate ndvi with epsilon value to avoid division by zero errors
+    ndvi = (NIR - red)/(NIR + red + np.finfo(float).eps)
     
-    # Assign final nodata value
-    ndvi = np.nan_to_num(ndvi, nan=65535)    
+    ndvi = np.clip(10000 * (ndvi + 1), 1, 20000) # rescale to 1-20000 range and add 1 to offset negative values
     
-    ndvi = (10000 + 10000*ndvi) # rescale to uint16 
-    
-    ndvi = np.nan_to_num(ndvi, nan=65535).astype(np.uint16)
+    ndvi = np.nan_to_num(ndvi, nan=0).astype(np.uint16)
           
     return ndvi
 
@@ -151,7 +144,7 @@ def mosaic(tiles, AOI, epsg):
     data = (
     stackstac.stack(
         tiles,
-        assets=['red', 'nir'],  # red, green, blue, NIR
+        assets=['red', 'nir'],  # red, NIR
         chunksize='auto',
         epsg=epsg, # project to Australian albers 
         bounds_latlon=bbox, # clip to AOI extent
@@ -159,7 +152,7 @@ def mosaic(tiles, AOI, epsg):
                                {'GDAL_HTTP_MAX_RETRY': 3,
                                 'GDAL_HTTP_RETRY_DELAY': 5,
                                }),
-        resolution=100
+        resolution=50
     )
     .where(lambda x: x > 0, other=np.nan)  # sentinel-2 uses 0 as nodata
     
@@ -184,7 +177,7 @@ def zonestats(polygons, array, affine):
     array = array
     affine = affine
     
-    stats = zonal_stats(polygons, array, nodata=65535, stats='mean', affine=affine)
+    stats = zonal_stats(polygons, array, nodata=0, stats='mean', affine=affine)
     
     outstats = polygons.join(pd.DataFrame(stats))
     
@@ -240,10 +233,12 @@ def main():
     Main function.
     """
     cmdargs = GetCmdArgs()
-    
-    tempDir = tempfile.mkdtemp(prefix='zstats')
-    
-    poly = gp.read_file(cmdargs.AOI)
+       
+    try:   
+        poly = gp.read_file(cmdargs.AOI)
+        
+    except:
+        raise SystemExit('No matching input files found')
     
     hex = getHexagons(poly, 8, cmdargs.epsg)
 
@@ -294,7 +289,8 @@ def main():
             dtype='uint16', 
             crs= cmdargs.epsg,
             transform= affine,
-            nodata=65535) as dst:
+            nodata=0
+            ) as dst:
             dst.write(stack, [1, 2])
         
             colname = f'{firstdate.year}_{firstdate.month}_mean'
