@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 """
 SPA452 Assessment 4 script - Detect forest change project
 
@@ -103,7 +102,7 @@ def NDVI(array):
     print('Calulating NDVI...')  
     img = array
     # ignore '0' and Nan pixels to avoid dividing errors
-    #np.seterr(divide='ignore', invalid='ignore')
+    np.seterr(divide='ignore', invalid='ignore')
     
     # Assign bands for calculation. Note that these are indexed from 0, not band name.
     NIR = img[1] # NIR
@@ -112,7 +111,7 @@ def NDVI(array):
     red = red.astype(np.float32)
         
     # calculate ndvi with epsilon value to avoid division by zero errors
-    ndvi = (NIR - red)/(NIR + red + np.finfo(float).eps)
+    ndvi = (NIR - red)/(NIR + red)
     
     ndvi = np.clip(10000 * (ndvi + 1), 1, 20000) # rescale to 1-20000 range and add 1 to offset negative values
     
@@ -228,7 +227,6 @@ def cloudtest(AOI, daterange1, daterange2):
     return cloud
 
 def main():
-    
     """
     Main function.
     """
@@ -293,8 +291,6 @@ def main():
             ) as dst:
             dst.write(stack, [1, 2])
         
-            colname = f'{firstdate.year}_{firstdate.month}_mean'
-        
             hex[f'{firstdate.year}_{firstdate.month}_mean'] = outpoly2['mean']
     
     # Process dates without exporting tiffs
@@ -310,9 +306,7 @@ def main():
         print('Processing analysis date...')
         
         outpoly2 = notiffpipe(hex, daterange2, cmdargs.buffer, cmdargs.epsg)
-        
-        colname = f'{firstdate.year}_{firstdate.month}_mean'
-        
+                
         hex[f'{firstdate.year}_{firstdate.month}_mean'] = outpoly2['mean']
         
     # Set trigger for disturbance and apply to geodataframe
@@ -330,7 +324,6 @@ def main():
     print(f'Approximately {area} hectares triggered for disturbance')
     
     hex.to_file(f'{cmdargs.out}')
-     
     
 if __name__ == '__main__':
     main()
